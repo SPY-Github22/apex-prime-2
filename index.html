@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>APEX Prime 2: Void Vanguard</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <div id="game-container">
+    <div id="webgl-canvas-container"></div>
+    <div id="hud">
+      <div class="hud-top-left">
+        <div class="hud-title">A.P.E.X. PRIME 2 // VOID VANGUARD</div>
+        <div class="hud-stat">SECTOR: <span id="hud-sector" class="hud-accent">ALPHA CENTAURI CORE</span></div>
+        <div class="hud-stat">COORDINATES: <span id="hud-coords">0, 0, 0</span></div>
+      </div>
+      <div class="hud-top-right">
+        <div class="hud-stat">SHIELDS: <span id="hud-shields" class="hud-accent-shields">100%</span></div>
+        <div class="hud-stat">HULL: <span id="hud-hull" class="hud-accent-hull">100%</span></div>
+        <div class="hud-stat">CREDITS: <span id="hud-credits" class="hud-accent-gold">2,500 CR</span></div>
+      </div>
+      <div class="hud-bottom-center">
+        <div class="hud-speedometer">SPEED: <span id="hud-speed">0.0</span> M/S</div>
+        <div class="hud-boost-bar"><div id="hud-boost-fill"></div></div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
