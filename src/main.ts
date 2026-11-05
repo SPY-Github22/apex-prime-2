@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ShipTelemetry } from './types';
 import { Starship, FlightInput } from './ship';
 import { AsteroidFieldManager } from './asteroids';
+import { CombatSystem } from './combat';
 
 export class ApexPrimeGame {
   private scene: THREE.Scene;
@@ -12,6 +13,7 @@ export class ApexPrimeGame {
 
   public ship: Starship;
   public asteroidField: AsteroidFieldManager;
+  public combat: CombatSystem;
 
   // Flight input state
   private input: FlightInput = {
@@ -24,6 +26,7 @@ export class ApexPrimeGame {
   };
 
   private keysDown: Set<string> = new Set();
+  private isMouseDown = false;
 
   // DOM HUD Elements
   private hudSector: HTMLElement;
@@ -71,6 +74,11 @@ export class ApexPrimeGame {
     // Initialize Asteroid Field (Sector 1: Valles Asteroid Rim)
     this.asteroidField = new AsteroidFieldManager();
     this.scene.add(this.asteroidField.mesh);
+
+    // Initialize Combat & Particle Systems
+    this.combat = new CombatSystem();
+    this.scene.add(this.combat.laserMesh);
+    this.scene.add(this.combat.particleMesh);
 
     this.telemetry = {
       pos: { x: 0, y: 0, z: 0 },
@@ -162,6 +170,18 @@ export class ApexPrimeGame {
     window.addEventListener('keyup', (e) => {
       this.keysDown.delete(e.code);
     });
+
+    window.addEventListener('mousedown', (e) => {
+      if (e.button === 0) {
+        this.isMouseDown = true;
+      }
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (e.button === 0) {
+        this.isMouseDown = false;
+      }
+    });
   }
 
   private pollInput(): void {
@@ -235,6 +255,9 @@ export class ApexPrimeGame {
       const impactDamage = Math.max(12, currentSpeed * 0.45);
       const res = this.ship.takeDamage(impactDamage);
 
+      // Spawn collision impact sparks
+      this.combat.spawnExplosion(this.ship.position, 15, new THREE.Color(0xff4400), 20);
+
       if (res.isDestroyed) {
         // Reset ship safely in harbor after critical hull rupture
         this.ship.reset(new THREE.Vector3(0, 0, 0));
@@ -278,6 +301,23 @@ export class ApexPrimeGame {
 
     this.pollInput();
     this.ship.update(dt, this.input);
+
+    // Combat: Laser Firing (Click or KeyF or KeyJ)
+    const isFiring = this.isMouseDown || this.keysDown.has('KeyF') || this.keysDown.has('KeyJ') || this.keysDown.has('Enter');
+    if (isFiring) {
+      this.combat.fire(
+        this.ship.getLaserMuzzlePositions(),
+        this.ship.getForwardVector(),
+        this.ship.velocity
+      );
+    }
+
+    this.combat.update(dt);
+    const combatHits = this.combat.checkAsteroidCollisions(this.asteroidField);
+    if (combatHits.mineralsEarned > 0) {
+      this.telemetry.credits += combatHits.mineralsEarned;
+    }
+
     this.asteroidField.update(dt);
     this.handleAsteroidCollisions();
     this.updateCamera(dt);

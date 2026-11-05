@@ -91,3 +91,37 @@ body {
   background: linear-gradient(90deg, #00f3ff, #ff00aa);
   box-shadow: 0 0 10px #00f3ff;
 }
+
+#controls-hint {
+  font-size: 11px;
+  color: #778899;
+  letter-spacing: 1px;
+  margin-top: 4px;
+  text-align: center;
+}
+
+#crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+  border: 1.5px solid rgba(0, 243, 255, 0.5);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(0, 243, 255, 0.4);
+}
+
+#crosshair::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 4px;
+  background-color: #00f3ff;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #00f3ff;
+}
