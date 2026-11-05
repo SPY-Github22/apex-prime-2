@@ -29,8 +29,30 @@
           [W/S] Pitch/Throttle &bull; [A/D] Yaw Turn &bull; [Q/E] Roll &bull; [SPACE] Afterburner &bull; [X] Space Brake &bull; [CLICK / F] Fire Lasers
         </div>
       </div>
+      <div id="boss-hud" class="boss-hud hidden">
+        <div class="boss-header">
+          <div class="boss-title">ARCHON 01 // THE IRON COLOSSUS</div>
+          <div id="boss-phase-tag" class="boss-phase">PHASE 1 // SHIELDED CORE</div>
+        </div>
+        <div class="boss-bar-container">
+          <div class="boss-bar-label">SHIELDS</div>
+          <div class="boss-bar-track">
+            <div id="boss-shields-fill" class="boss-bar-fill-shields"></div>
+          </div>
+        </div>
+        <div class="boss-bar-container">
+          <div class="boss-bar-label">HULL</div>
+          <div class="boss-bar-track">
+            <div id="boss-hull-fill" class="boss-bar-fill-hull"></div>
+          </div>
+        </div>
+      </div>
+
       <div id="docking-prompt" class="hidden">
         <span class="prompt-key">[E]</span> ENGAGE TRACTOR DOCKING BEAM
+      </div>
+      <div id="warp-prompt" class="hidden">
+        <span class="prompt-key">[G]</span> ENGAGE HYPERSPACE JUMP &bull; SECTOR 02
       </div>
       <div id="station-dock-banner" class="hidden">
         <div class="station-banner-content">

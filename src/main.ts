@@ -8,6 +8,8 @@ import { SpaceStation } from './station';
 import { StarbaseShop } from './shop';
 import { QuestManager } from './quests';
 import { TerminalUI } from './terminal_ui';
+import { IronColossusBoss } from './boss';
+import { SectorWarpGate } from './warpgate';
 
 export class ApexPrimeGame {
   private scene: THREE.Scene;
@@ -24,6 +26,8 @@ export class ApexPrimeGame {
   public shop: StarbaseShop;
   public quests: QuestManager;
   public terminalUI: TerminalUI;
+  public boss: IronColossusBoss;
+  public warpGate: SectorWarpGate;
 
   // Flight input state
   private input: FlightInput = {
@@ -50,6 +54,11 @@ export class ApexPrimeGame {
   private hudDockingPrompt: HTMLElement;
   private hudStationDockBanner: HTMLElement;
   private btnUndock: HTMLElement;
+  private hudBoss: HTMLElement;
+  private hudBossPhaseTag: HTMLElement;
+  private hudBossShieldsFill: HTMLElement;
+  private hudBossHullFill: HTMLElement;
+  private hudWarpPrompt: HTMLElement;
 
   private telemetry: ShipTelemetry;
 
@@ -84,6 +93,11 @@ export class ApexPrimeGame {
     this.hudDockingPrompt = document.getElementById('docking-prompt')!;
     this.hudStationDockBanner = document.getElementById('station-dock-banner')!;
     this.btnUndock = document.getElementById('btn-undock')!;
+    this.hudBoss = document.getElementById('boss-hud')!;
+    this.hudBossPhaseTag = document.getElementById('boss-phase-tag')!;
+    this.hudBossShieldsFill = document.getElementById('boss-shields-fill')!;
+    this.hudBossHullFill = document.getElementById('boss-hull-fill')!;
+    this.hudWarpPrompt = document.getElementById('warp-prompt')!;
 
     if (this.btnUndock) {
       this.btnUndock.addEventListener('click', () => {
@@ -114,6 +128,14 @@ export class ApexPrimeGame {
     // Initialize Orbital Space Station (Starbase Horizon-9)
     this.station = new SpaceStation('STARBASE HORIZON-9', 'THE SOLAR ALLIANCE', new THREE.Vector3(0, 45, -280));
     this.scene.add(this.station.mesh);
+
+    // Initialize Archon 01 Boss Vehicle (The Iron Colossus)
+    this.boss = new IronColossusBoss(new THREE.Vector3(150, 0, -450));
+    this.scene.add(this.boss.mesh);
+
+    // Initialize Sector Warp Star-Gate
+    this.warpGate = new SectorWarpGate('SECTOR 02 // THE NEON GRAVEYARD', new THREE.Vector3(0, 0, -800));
+    this.scene.add(this.warpGate.mesh);
 
     // Initialize Starbase Shop & Quest Engine
     this.shop = new StarbaseShop();
@@ -237,6 +259,15 @@ export class ApexPrimeGame {
       if (e.code === 'KeyT') {
         if (this.station.data.status === 'DOCKED') {
           this.terminalUI.toggle();
+        }
+      }
+
+      // Sector Warp Gate Transit
+      if (e.code === 'KeyG') {
+        const prox = this.warpGate.checkProximity(this.ship.position);
+        if (prox.canWarp) {
+          this.warpGate.engageWarp();
+          this.terminalUI.showHUDToast('HYPERSPACE JUMP ENGAGED // TRANSITING TO SECTOR 02...');
         }
       }
 
@@ -477,6 +508,66 @@ export class ApexPrimeGame {
     if (navRes.newlyReady.length > 0) {
       this.terminalUI.showHUDToast(`BEACON REACHED: ${navRes.newlyReady[0].title} (Dock at Station)`);
       this.terminalUI.updateHUDMissionTracker();
+    }
+
+    // Archon 01 Boss Spawning Check
+    if (!this.boss.data.isActive && this.boss.data.phase !== 'DEFEATED') {
+      const distToSpawn = this.ship.position.distanceTo(new THREE.Vector3(150, 0, -450));
+      if (distToSpawn <= 130) {
+        this.boss.spawn(new THREE.Vector3(150, 0, -450));
+        this.terminalUI.showHUDToast('WARNING: CAPITAL CLASS WARSHIP DETECTED // ARCHON 01 ENGAGED!');
+      }
+    }
+
+    // Archon 01 Boss Combat & Laser Hits
+    if (this.boss.data.isActive && this.boss.data.isAlive) {
+      this.hudBoss.classList.remove('hidden');
+      const sPct = Math.round((this.boss.data.shields / this.boss.data.maxShields) * 100);
+      const hPct = Math.round((this.boss.data.health / this.boss.data.maxHealth) * 100);
+      this.hudBossShieldsFill.style.width = `${sPct}%`;
+      this.hudBossHullFill.style.width = `${hPct}%`;
+      this.hudBossPhaseTag.innerText = this.boss.data.phase === 'PHASE_ENRAGED'
+        ? 'PHASE 2 // ENRAGED CORE'
+        : 'PHASE 1 // SHIELDED CORE';
+
+      this.boss.update(dt, this.ship.position, this.combat);
+
+      // Check player lasers colliding with Archon 01
+      for (const laser of this.combat.lasers) {
+        if (!laser.isAlive || laser.isEnemy) continue;
+        const dist = laser.position.distanceTo(this.boss.data.position);
+        if (dist <= 16.0) {
+          laser.isAlive = false;
+          const shotDir = laser.velocity.clone().normalize();
+          const dmgRes = this.boss.takeDamage(laser.damage, shotDir);
+          const sparkColor = dmgRes.isExhaustHit ? new THREE.Color(0xffff00) : new THREE.Color(0xff0044);
+          this.combat.spawnExplosion(laser.position, dmgRes.isExhaustHit ? 24 : 12, sparkColor, 25);
+
+          if (dmgRes.isDestroyed) {
+            this.combat.spawnExplosion(this.boss.data.position, 60, new THREE.Color(0xff2200), 75);
+            this.telemetry.credits += this.boss.data.bountyCredits;
+            this.warpGate.activate();
+            this.terminalUI.showHUDToast('ARCHON 01 DEFEATED! +5,000 CR BOUNTY // SECTOR GATE ONLINE!');
+          }
+        }
+      }
+    } else {
+      this.hudBoss.classList.add('hidden');
+    }
+
+    // Sector Warp Gate Logic & Transit
+    const gateRes = this.warpGate.update(dt, this.ship);
+    const gateProx = this.warpGate.checkProximity(this.ship.position);
+    if (gateProx.canWarp) {
+      this.hudWarpPrompt.classList.remove('hidden');
+    } else {
+      this.hudWarpPrompt.classList.add('hidden');
+    }
+
+    if (gateRes.warpCompleted) {
+      this.telemetry.currentSector = 'SECTOR 02 // THE NEON GRAVEYARD';
+      this.hudSector.innerText = this.telemetry.currentSector;
+      this.terminalUI.showHUDToast('WARP JUMP COMPLETE // ARRIVED AT SECTOR 02: THE NEON GRAVEYARD');
     }
 
     // Check enemy lasers hitting player starship
