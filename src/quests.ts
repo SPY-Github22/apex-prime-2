@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export type QuestType = 'MINE_ASTEROIDS' | 'KILL_ENEMIES' | 'NAVIGATE_COORDS';
+export type QuestType = 'MINE_ASTEROIDS' | 'KILL_ENEMIES' | 'NAVIGATE_COORDS' | 'SALVAGE_DERELICTS' | 'KILL_PHANTOMS';
 export type QuestStatus = 'AVAILABLE' | 'ACTIVE' | 'READY_TO_CLAIM' | 'COMPLETED';
 
 export interface Quest {
@@ -72,6 +72,56 @@ export const INITIAL_QUESTS: Quest[] = [
     rewardCredits: 2500,
     rewardItem: 'Obsidian Monolith Coordinates',
     status: 'AVAILABLE'
+  },
+  {
+    id: 'quest-act2-salvage',
+    act: 2,
+    title: 'Derelict Data Core Recovery',
+    issuer: 'Dr. Elena Ruiz',
+    issuerTitle: 'Chief Xeno-Archeologist, Outpost Cyberia',
+    description: 'The Neon Graveyard is littered with shattered cruisers from the First Solar War. Salvage 3 data vaults or wreckage pieces.',
+    dialogue: 'Commander! The precursor data cores floating in Sector 2 contain sub-space telemetry on the 7 Archons. Bring me 3 salvaged relics and I can calibrate our targeting computers.',
+    completionDialogue: 'Magnificent salvage! The decrypted logs reveal the location of the Chrono Singularity and the Second Archon!',
+    type: 'SALVAGE_DERELICTS',
+    requiredCount: 3,
+    currentCount: 0,
+    rewardCredits: 2800,
+    rewardItem: 'Precursor Encryption Cipher',
+    status: 'AVAILABLE'
+  },
+  {
+    id: 'quest-act2-phantoms',
+    act: 2,
+    title: 'Ghosts in the Graveyard',
+    issuer: 'Dr. Elena Ruiz',
+    issuerTitle: 'Chief Xeno-Archeologist, Outpost Cyberia',
+    description: 'Syndicate Cyber-Phantoms are ambushing supply convoys using phase cloaking. Eliminate 4 cloaked Cyber-Phantoms.',
+    dialogue: 'Syndicate phantoms are using phase cloak technology reverse-engineered from precursor wreckage. They strike from the shadows. Flush out and destroy 4 phantoms.',
+    completionDialogue: 'The wreckage corridors are secured once more. Alliance outposts have wired the bounty directly to your accounts.',
+    type: 'KILL_PHANTOMS',
+    requiredCount: 4,
+    currentCount: 0,
+    rewardCredits: 3500,
+    rewardItem: 'Phase Cloak Disruptor Blueprint',
+    status: 'AVAILABLE'
+  },
+  {
+    id: 'quest-act2-temporal',
+    act: 2,
+    title: 'The Chrono Singularity',
+    issuer: 'AURA',
+    issuerTitle: 'Tactical Ship Co-Pilot AI',
+    description: 'Severe temporal dilation field detected at deep wreckage coordinates [0, 40, -1250]. Fly within 45 units to investigate.',
+    dialogue: 'Commander, tachyon sensors are spiking off the scale. Local space-time curvature is warping around coordinates [0, 40, -1250]. Second Archon presence confirmed.',
+    completionDialogue: 'Telemetry gathered. Archon 02 has manifested: The Chrono Phantom is warping space around us!',
+    type: 'NAVIGATE_COORDS',
+    targetCoords: { x: 0, y: 40, z: -1250 },
+    targetDistance: 45,
+    requiredCount: 1,
+    currentCount: 0,
+    rewardCredits: 4500,
+    rewardItem: 'Chrono Sensor Calibration',
+    status: 'AVAILABLE'
   }
 ];
 
@@ -140,6 +190,42 @@ export class QuestManager {
 
     for (const q of this.quests) {
       if (q.status === 'ACTIVE' && q.type === 'KILL_ENEMIES') {
+        q.currentCount = Math.min(q.requiredCount, q.currentCount + 1);
+        updated.push(q);
+        if (q.currentCount >= q.requiredCount) {
+          q.status = 'READY_TO_CLAIM';
+          newlyReady.push(q);
+        }
+      }
+    }
+
+    return { updated, newlyReady };
+  }
+
+  public onDerelictSalvaged(): { updated: Quest[]; newlyReady: Quest[] } {
+    const updated: Quest[] = [];
+    const newlyReady: Quest[] = [];
+
+    for (const q of this.quests) {
+      if (q.status === 'ACTIVE' && q.type === 'SALVAGE_DERELICTS') {
+        q.currentCount = Math.min(q.requiredCount, q.currentCount + 1);
+        updated.push(q);
+        if (q.currentCount >= q.requiredCount) {
+          q.status = 'READY_TO_CLAIM';
+          newlyReady.push(q);
+        }
+      }
+    }
+
+    return { updated, newlyReady };
+  }
+
+  public onPhantomDestroyed(): { updated: Quest[]; newlyReady: Quest[] } {
+    const updated: Quest[] = [];
+    const newlyReady: Quest[] = [];
+
+    for (const q of this.quests) {
+      if (q.status === 'ACTIVE' && (q.type === 'KILL_PHANTOMS' || q.type === 'KILL_ENEMIES')) {
         q.currentCount = Math.min(q.requiredCount, q.currentCount + 1);
         updated.push(q);
         if (q.currentCount >= q.requiredCount) {

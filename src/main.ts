@@ -10,6 +10,9 @@ import { QuestManager } from './quests';
 import { TerminalUI } from './terminal_ui';
 import { IronColossusBoss } from './boss';
 import { SectorWarpGate } from './warpgate';
+import { DerelictFieldManager } from './derelicts';
+import { CyberPhantomFleetManager } from './phantoms';
+import { ChronoPhantomBoss } from './boss2';
 
 export class ApexPrimeGame {
   private scene: THREE.Scene;
@@ -27,7 +30,10 @@ export class ApexPrimeGame {
   public quests: QuestManager;
   public terminalUI: TerminalUI;
   public boss: IronColossusBoss;
+  public boss2: ChronoPhantomBoss;
   public warpGate: SectorWarpGate;
+  public derelicts: DerelictFieldManager;
+  public phantoms: CyberPhantomFleetManager;
 
   // Flight input state
   private input: FlightInput = {
@@ -55,10 +61,13 @@ export class ApexPrimeGame {
   private hudStationDockBanner: HTMLElement;
   private btnUndock: HTMLElement;
   private hudBoss: HTMLElement;
+  private hudBossTitle: HTMLElement;
   private hudBossPhaseTag: HTMLElement;
   private hudBossShieldsFill: HTMLElement;
   private hudBossHullFill: HTMLElement;
   private hudWarpPrompt: HTMLElement;
+  private hudSalvagePrompt: HTMLElement;
+  private hudTemporalWarning: HTMLElement;
 
   private telemetry: ShipTelemetry;
 
@@ -94,10 +103,13 @@ export class ApexPrimeGame {
     this.hudStationDockBanner = document.getElementById('station-dock-banner')!;
     this.btnUndock = document.getElementById('btn-undock')!;
     this.hudBoss = document.getElementById('boss-hud')!;
+    this.hudBossTitle = document.getElementById('boss-title')!;
     this.hudBossPhaseTag = document.getElementById('boss-phase-tag')!;
     this.hudBossShieldsFill = document.getElementById('boss-shields-fill')!;
     this.hudBossHullFill = document.getElementById('boss-hull-fill')!;
     this.hudWarpPrompt = document.getElementById('warp-prompt')!;
+    this.hudSalvagePrompt = document.getElementById('salvage-prompt')!;
+    this.hudTemporalWarning = document.getElementById('temporal-warning')!;
 
     if (this.btnUndock) {
       this.btnUndock.addEventListener('click', () => {
@@ -136,6 +148,18 @@ export class ApexPrimeGame {
     // Initialize Sector Warp Star-Gate
     this.warpGate = new SectorWarpGate('SECTOR 02 // THE NEON GRAVEYARD', new THREE.Vector3(0, 0, -800));
     this.scene.add(this.warpGate.mesh);
+
+    // Initialize Sector 2: Derelict Cyber-Debris Field
+    this.derelicts = new DerelictFieldManager();
+    this.scene.add(this.derelicts.group);
+
+    // Initialize Sector 2: Syndicate Cyber-Phantom Interceptors
+    this.phantoms = new CyberPhantomFleetManager(6, new THREE.Vector3(0, 0, -1100));
+    this.scene.add(this.phantoms.squadGroup);
+
+    // Initialize Archon 02 Boss Vehicle (The Chrono Phantom)
+    this.boss2 = new ChronoPhantomBoss(new THREE.Vector3(0, 40, -1250));
+    this.scene.add(this.boss2.mesh);
 
     // Initialize Starbase Shop & Quest Engine
     this.shop = new StarbaseShop();
@@ -261,6 +285,24 @@ export class ApexPrimeGame {
       if (e.code === 'KeyT') {
         if (this.station.data.status === 'DOCKED') {
           this.terminalUI.toggle();
+        }
+      }
+
+      // Derelict Salvage Operation
+      if (e.code === 'KeyR') {
+        const wreck = this.derelicts.checkSalvageProximity(this.ship.position, 35.0);
+        if (wreck) {
+          const sRes = this.derelicts.salvage(wreck.id);
+          if (sRes.success) {
+            this.telemetry.credits += sRes.creditsYield;
+            this.combat.spawnExplosion(wreck.position, 30, new THREE.Color(0xfacc15), 35);
+            this.terminalUI.showHUDToast(`SALVAGED: ${wreck.name} (+${sRes.creditsYield.toLocaleString()} CR)${sRes.relicFound ? ' [PRECURSOR RELIC EXTRACTED]' : ''}`);
+            const qRes = this.quests.onDerelictSalvaged();
+            if (qRes.newlyReady.length > 0) {
+              this.terminalUI.showHUDToast(`MISSION READY: ${qRes.newlyReady[0].title} (Dock at Station)`);
+            }
+            this.terminalUI.updateHUDMissionTracker();
+          }
         }
       }
 
@@ -418,7 +460,7 @@ export class ApexPrimeGame {
     const hullPct = Math.round((this.ship.hull / this.ship.maxHull) * 100);
     this.hudHull.innerText = `${hullPct}%`;
 
-    this.hudHostiles.innerText = this.enemyFleet.getActiveCount().toString();
+    this.hudHostiles.innerText = (this.enemyFleet.getActiveCount() + this.phantoms.getActiveCount()).toString();
     this.hudCoords.innerText = `${Math.round(this.ship.position.x)}, ${Math.round(this.ship.position.y)}, ${Math.round(this.ship.position.z)}`;
     this.hudSector.innerText = this.telemetry.currentSector;
     this.hudCredits.innerText = `${this.telemetry.credits.toLocaleString()} CR`;
@@ -520,6 +562,43 @@ export class ApexPrimeGame {
       this.terminalUI.updateHUDMissionTracker();
     }
 
+    // Sector 2: Derelict Cyber-Debris Field Collision & Salvage Detection
+    this.derelicts.update(dt);
+    const nearbyWreck = this.derelicts.checkSalvageProximity(this.ship.position, 38.0);
+    if (nearbyWreck) {
+      this.hudSalvagePrompt.innerHTML = `<span class="prompt-key">[R]</span> SALVAGE ${nearbyWreck.name} (+${nearbyWreck.salvageValue.toLocaleString()} CR)`;
+      this.hudSalvagePrompt.classList.remove('hidden');
+    } else {
+      this.hudSalvagePrompt.classList.add('hidden');
+    }
+
+    const derelictHit = this.derelicts.checkCollision(this.ship.position, 3.2);
+    if (derelictHit) {
+      const bNorm = this.ship.position.clone().sub(derelictHit.position);
+      if (bNorm.lengthSq() === 0) bNorm.set(0, 1, 0);
+      bNorm.normalize();
+      this.ship.position.copy(derelictHit.position).addScaledVector(bNorm, derelictHit.radius + 3.4);
+      this.ship.velocity.reflect(bNorm).multiplyScalar(0.5);
+      this.ship.takeDamage(16);
+      this.combat.spawnExplosion(this.ship.position, 16, new THREE.Color(0x00f3ff), 20);
+    }
+
+    // Sector 2: Cyber-Phantom Squad Dogfights
+    this.phantoms.update(dt, this.ship.position, this.combat);
+    const phantomHits = this.phantoms.checkPlayerLaserHits(this.combat);
+    if (phantomHits.totalBounty > 0) {
+      this.telemetry.credits += phantomHits.totalBounty;
+    }
+    if (phantomHits.killed > 0) {
+      for (let i = 0; i < phantomHits.killed; i++) {
+        const qRes = this.quests.onPhantomDestroyed();
+        if (qRes.newlyReady.length > 0) {
+          this.terminalUI.showHUDToast(`MISSION READY: ${qRes.newlyReady[0].title} (Dock at Station)`);
+        }
+      }
+      this.terminalUI.updateHUDMissionTracker();
+    }
+
     // Archon 01 Boss Spawning Check
     if (!this.boss.data.isActive && this.boss.data.phase !== 'DEFEATED') {
       const distToSpawn = this.ship.position.distanceTo(new THREE.Vector3(150, 0, -450));
@@ -532,6 +611,7 @@ export class ApexPrimeGame {
     // Archon 01 Boss Combat & Laser Hits
     if (this.boss.data.isActive && this.boss.data.isAlive) {
       this.hudBoss.classList.remove('hidden');
+      this.hudBossTitle.innerText = this.boss.data.name;
       const sPct = Math.round((this.boss.data.shields / this.boss.data.maxShields) * 100);
       const hPct = Math.round((this.boss.data.health / this.boss.data.maxHealth) * 100);
       this.hudBossShieldsFill.style.width = `${sPct}%`;
@@ -561,8 +641,62 @@ export class ApexPrimeGame {
           }
         }
       }
-    } else {
+    } else if (!this.boss2.data.isActive || !this.boss2.data.isAlive) {
       this.hudBoss.classList.add('hidden');
+    }
+
+    // Archon 02 Boss (The Chrono Phantom) Spawning Check
+    if (!this.boss2.data.isActive && this.boss2.data.phase !== 'DEFEATED') {
+      const distToB2 = this.ship.position.distanceTo(new THREE.Vector3(0, 40, -1250));
+      if (distToB2 <= 140) {
+        this.boss2.spawn(new THREE.Vector3(0, 40, -1250));
+        this.terminalUI.showHUDToast('WARNING: TEMPORAL ANOMALY DETECTED // ARCHON 02 ENGAGED!');
+      }
+    }
+
+    // Archon 02 Combat Loop & Temporal Mechanics
+    if (this.boss2.data.isActive && this.boss2.data.isAlive) {
+      this.hudBoss.classList.remove('hidden');
+      this.hudBossTitle.innerText = this.boss2.data.name;
+      const sPct = Math.round((this.boss2.data.shields / this.boss2.data.maxShields) * 100);
+      const hPct = Math.round((this.boss2.data.health / this.boss2.data.maxHealth) * 100);
+      this.hudBossShieldsFill.style.width = `${sPct}%`;
+      this.hudBossHullFill.style.width = `${hPct}%`;
+      this.hudBossPhaseTag.innerText = this.boss2.data.phase === 'PHASE_HYPER_DILATION'
+        ? 'PHASE 2 // HYPER DILATION'
+        : 'PHASE 1 // TEMPORAL WEAVE';
+
+      const b2Res = this.boss2.update(dt, this.ship, this.combat);
+      if (b2Res.inSlowField) {
+        this.hudTemporalWarning.classList.remove('hidden');
+      } else {
+        this.hudTemporalWarning.classList.add('hidden');
+      }
+
+      // Check player lasers colliding with Archon 02
+      for (const laser of this.combat.lasers) {
+        if (!laser.isAlive || laser.isEnemy) continue;
+        const dist = laser.position.distanceTo(this.boss2.data.position);
+        if (dist <= 18.0) {
+          laser.isAlive = false;
+          const dmgRes = this.boss2.takeDamage(laser.damage, laser.velocity.clone().normalize());
+
+          if (dmgRes.didChronoDash) {
+            this.combat.spawnExplosion(laser.position, 35, new THREE.Color(0x00ffff), 40);
+            this.terminalUI.showHUDToast('ARCHON 02 EXECUTED TEMPORAL DISPLACEMENT JUMP!');
+          } else {
+            this.combat.spawnExplosion(laser.position, 14, new THREE.Color(0xfacc15), 25);
+          }
+
+          if (dmgRes.isDestroyed) {
+            this.combat.spawnExplosion(this.boss2.data.position, 75, new THREE.Color(0x00ffff), 90);
+            this.telemetry.credits += this.boss2.data.bountyCredits;
+            this.terminalUI.showHUDToast('ARCHON 02 DEFEATED! +8,000 CR BOUNTY // CHRONO WARP KEY ACQUIRED!');
+            this.hudBoss.classList.add('hidden');
+            this.hudTemporalWarning.classList.add('hidden');
+          }
+        }
+      }
     }
 
     // Sector Warp Gate Logic & Transit

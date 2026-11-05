@@ -3,10 +3,10 @@ import * as THREE from 'three';
 import { QuestManager } from './quests';
 
 describe('Quest Board & Mission Engine', () => {
-  it('initializes with Act 1 available missions', () => {
+  it('initializes with Act 1 and Act 2 available missions', () => {
     const qm = new QuestManager();
     const available = qm.getAvailableQuests();
-    expect(available.length).toBe(3);
+    expect(available.length).toBe(6);
     expect(qm.getActiveQuests().length).toBe(0);
     expect(qm.getCompletedQuests().length).toBe(0);
 
@@ -14,6 +14,11 @@ describe('Quest Board & Mission Engine', () => {
     expect(minQuest).toBeDefined();
     expect(minQuest!.issuer).toBe('Kaelen Voss');
     expect(minQuest!.rewardCredits).toBe(1200);
+
+    const salvageQuest = qm.getQuest('quest-act2-salvage');
+    expect(salvageQuest).toBeDefined();
+    expect(salvageQuest!.issuer).toBe('Dr. Elena Ruiz');
+    expect(salvageQuest!.rewardCredits).toBe(2800);
   });
 
   it('accepts available missions into active quest log', () => {
@@ -100,5 +105,31 @@ describe('Quest Board & Mission Engine', () => {
     expect(winClaim.quest?.status).toBe('COMPLETED');
     expect(qm.getCompletedQuests().length).toBe(1);
     expect(qm.getActiveQuests().length).toBe(0);
+  });
+
+  it('advances derelict salvage quests and transitions to READY_TO_CLAIM', () => {
+    const qm = new QuestManager();
+    qm.acceptQuest('quest-act2-salvage'); // requires 3 salvages
+
+    qm.onDerelictSalvaged();
+    qm.onDerelictSalvaged();
+    const res = qm.onDerelictSalvaged();
+
+    expect(res.newlyReady.length).toBe(1);
+    expect(qm.getQuest('quest-act2-salvage')!.status).toBe('READY_TO_CLAIM');
+  });
+
+  it('advances phantom purge quests on phantom destruction', () => {
+    const qm = new QuestManager();
+    qm.acceptQuest('quest-act2-phantoms'); // requires 4 phantom kills
+
+    for (let i = 0; i < 3; i++) {
+      qm.onPhantomDestroyed();
+    }
+    expect(qm.getQuest('quest-act2-phantoms')!.currentCount).toBe(3);
+
+    const res = qm.onPhantomDestroyed();
+    expect(res.newlyReady.length).toBe(1);
+    expect(qm.getQuest('quest-act2-phantoms')!.status).toBe('READY_TO_CLAIM');
   });
 });

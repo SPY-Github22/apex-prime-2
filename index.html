@@ -26,12 +26,12 @@
         <div class="hud-speedometer">SPEED: <span id="hud-speed">0.0</span> M/S</div>
         <div class="hud-boost-bar"><div id="hud-boost-fill"></div></div>
         <div id="controls-hint">
-          [W] Throttle &bull; [S / ARROWS] Pitch &bull; [A/D] Turn &bull; [Q/E] Roll &bull; [SPACE] Boost &bull; [X] Brake &bull; [CLICK / F] Fire &bull; [E] Dock &bull; [T] Terminal &bull; [G] Warp
+          [W] Throttle &bull; [S / ARROWS] Pitch &bull; [A/D] Turn &bull; [Q/E] Roll &bull; [SPACE] Boost &bull; [X] Brake &bull; [CLICK / F] Fire &bull; [E] Dock &bull; [T] Terminal &bull; [R] Salvage &bull; [G] Warp
         </div>
       </div>
       <div id="boss-hud" class="boss-hud hidden">
         <div class="boss-header">
-          <div class="boss-title">ARCHON 01 // THE IRON COLOSSUS</div>
+          <div id="boss-title" class="boss-title">ARCHON 01 // THE IRON COLOSSUS</div>
           <div id="boss-phase-tag" class="boss-phase">PHASE 1 // SHIELDED CORE</div>
         </div>
         <div class="boss-bar-container">
@@ -50,6 +50,12 @@
 
       <div id="docking-prompt" class="hidden">
         <span class="prompt-key">[E]</span> ENGAGE TRACTOR DOCKING BEAM
+      </div>
+      <div id="salvage-prompt" class="hidden">
+        <span class="prompt-key">[R]</span> SALVAGE DERELICT WRECK
+      </div>
+      <div id="temporal-warning" class="temporal-warning hidden">
+        TEMPORAL DILATION ACTIVE // PROPULSION COMPROMISED
       </div>
       <div id="warp-prompt" class="hidden">
         <span class="prompt-key">[G]</span> ENGAGE HYPERSPACE JUMP &bull; SECTOR 02

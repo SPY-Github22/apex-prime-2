@@ -663,7 +663,7 @@ body {
   transition: width 0.1s linear;
 }
 
-/* WARP PROMPT */
+/* WARP & SALVAGE PROMPTS */
 #warp-prompt {
   position: absolute;
   bottom: 120px;
@@ -679,6 +679,42 @@ body {
   letter-spacing: 2px;
   box-shadow: 0 0 20px rgba(0, 255, 170, 0.5);
   animation: pulse-glow 1.2s infinite alternate;
+  pointer-events: none;
+}
+
+#salvage-prompt {
+  position: absolute;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20, 16, 4, 0.9);
+  border: 1.5px solid #facc15;
+  border-radius: 6px;
+  padding: 10px 24px;
+  color: #facc15;
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  box-shadow: 0 0 20px rgba(250, 204, 21, 0.5);
+  animation: pulse-glow 1.2s infinite alternate;
+  pointer-events: none;
+}
+
+.temporal-warning {
+  position: absolute;
+  bottom: 170px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30, 10, 4, 0.9);
+  border: 1.5px solid #ff4400;
+  border-radius: 6px;
+  padding: 8px 20px;
+  color: #ffaa00;
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  box-shadow: 0 0 16px rgba(255, 68, 0, 0.6);
+  animation: pulse-glow 0.8s infinite alternate;
   pointer-events: none;
 }
 
