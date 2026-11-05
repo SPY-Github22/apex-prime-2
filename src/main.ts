@@ -3,6 +3,7 @@ import { ShipTelemetry } from './types';
 import { Starship, FlightInput } from './ship';
 import { AsteroidFieldManager } from './asteroids';
 import { CombatSystem } from './combat';
+import { EnemyFleetManager } from './enemies';
 
 export class ApexPrimeGame {
   private scene: THREE.Scene;
@@ -14,6 +15,7 @@ export class ApexPrimeGame {
   public ship: Starship;
   public asteroidField: AsteroidFieldManager;
   public combat: CombatSystem;
+  public enemyFleet: EnemyFleetManager;
 
   // Flight input state
   private input: FlightInput = {
@@ -33,6 +35,7 @@ export class ApexPrimeGame {
   private hudCoords: HTMLElement;
   private hudShields: HTMLElement;
   private hudHull: HTMLElement;
+  private hudHostiles: HTMLElement;
   private hudCredits: HTMLElement;
   private hudSpeed: HTMLElement;
   private hudBoostFill: HTMLElement;
@@ -63,6 +66,7 @@ export class ApexPrimeGame {
     this.hudCoords = document.getElementById('hud-coords')!;
     this.hudShields = document.getElementById('hud-shields')!;
     this.hudHull = document.getElementById('hud-hull')!;
+    this.hudHostiles = document.getElementById('hud-hostiles')!;
     this.hudCredits = document.getElementById('hud-credits')!;
     this.hudSpeed = document.getElementById('hud-speed')!;
     this.hudBoostFill = document.getElementById('hud-boost-fill')!;
@@ -79,6 +83,10 @@ export class ApexPrimeGame {
     this.combat = new CombatSystem();
     this.scene.add(this.combat.laserMesh);
     this.scene.add(this.combat.particleMesh);
+
+    // Initialize Autonomous Enemy AI Fleet
+    this.enemyFleet = new EnemyFleetManager(8);
+    this.scene.add(this.enemyFleet.squadGroup);
 
     this.telemetry = {
       pos: { x: 0, y: 0, z: 0 },
@@ -265,6 +273,23 @@ export class ApexPrimeGame {
     }
   }
 
+  private handleEnemyLaserCollisions(): void {
+    for (const laser of this.combat.lasers) {
+      if (!laser.isAlive || !laser.isEnemy) continue;
+
+      const dist = laser.position.distanceTo(this.ship.position);
+      if (dist <= laser.radius + 2.8) {
+        laser.isAlive = false;
+        this.combat.spawnExplosion(laser.position, 16, new THREE.Color(0xff0044), 30);
+        const damageRes = this.ship.takeDamage(laser.damage);
+
+        if (damageRes.isDestroyed) {
+          this.ship.reset(new THREE.Vector3(0, 0, 0));
+        }
+      }
+    }
+  }
+
   private updateHUD(): void {
     const curSpeed = this.ship.velocity.length();
     this.hudSpeed.innerText = curSpeed.toFixed(1);
@@ -283,6 +308,7 @@ export class ApexPrimeGame {
     const hullPct = Math.round((this.ship.hull / this.ship.maxHull) * 100);
     this.hudHull.innerText = `${hullPct}%`;
 
+    this.hudHostiles.innerText = this.enemyFleet.getActiveCount().toString();
     this.hudCoords.innerText = `${Math.round(this.ship.position.x)}, ${Math.round(this.ship.position.y)}, ${Math.round(this.ship.position.z)}`;
     this.hudSector.innerText = this.telemetry.currentSector;
     this.hudCredits.innerText = `${this.telemetry.credits.toLocaleString()} CR`;
@@ -313,10 +339,24 @@ export class ApexPrimeGame {
     }
 
     this.combat.update(dt);
+
+    // Check laser collisions with asteroids
     const combatHits = this.combat.checkAsteroidCollisions(this.asteroidField);
     if (combatHits.mineralsEarned > 0) {
       this.telemetry.credits += combatHits.mineralsEarned;
     }
+
+    // Update enemy AI drones and dogfighting
+    this.enemyFleet.update(dt, this.ship.position, this.combat);
+
+    // Check player lasers hitting enemy drones
+    const enemyHits = this.enemyFleet.checkPlayerLaserHits(this.combat);
+    if (enemyHits.totalBounty > 0) {
+      this.telemetry.credits += enemyHits.totalBounty;
+    }
+
+    // Check enemy lasers hitting player starship
+    this.handleEnemyLaserCollisions();
 
     this.asteroidField.update(dt);
     this.handleAsteroidCollisions();
