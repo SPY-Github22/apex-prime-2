@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ShipTelemetry } from './types';
 import { Starship, FlightInput } from './ship';
+import { AsteroidFieldManager } from './asteroids';
 
 export class ApexPrimeGame {
   private scene: THREE.Scene;
@@ -10,6 +11,7 @@ export class ApexPrimeGame {
   private clock = new THREE.Clock();
 
   public ship: Starship;
+  public asteroidField: AsteroidFieldManager;
 
   // Flight input state
   private input: FlightInput = {
@@ -66,6 +68,10 @@ export class ApexPrimeGame {
     this.ship = new Starship(new THREE.Vector3(0, 0, 0));
     this.scene.add(this.ship.mesh);
 
+    // Initialize Asteroid Field (Sector 1: Valles Asteroid Rim)
+    this.asteroidField = new AsteroidFieldManager();
+    this.scene.add(this.asteroidField.mesh);
+
     this.telemetry = {
       pos: { x: 0, y: 0, z: 0 },
       vel: { x: 0, y: 0, z: 0 },
@@ -78,7 +84,7 @@ export class ApexPrimeGame {
       hull: this.ship.hull,
       maxHull: this.ship.maxHull,
       credits: 2500,
-      currentSector: 'ALPHA CENTAURI CORE'
+      currentSector: 'SECTOR 01 // VALLES ASTEROID RIM'
     };
 
     this.initLights();
@@ -192,7 +198,7 @@ export class ApexPrimeGame {
     const forward = this.ship.getForwardVector();
     const up = this.ship.getUpVector();
 
-    // 3rd person chase camera offset: 16 units behind, 4.5 units above ship plane
+    // 3rd person chase camera offset: 15.5 units behind, 4.5 units above ship plane
     const desiredPos = this.ship.position.clone()
       .addScaledVector(forward, -15.5)
       .addScaledVector(up, 4.5);
@@ -206,6 +212,34 @@ export class ApexPrimeGame {
 
     // Align camera up vector with ship's local up vector for cinematic banking
     this.camera.up.lerp(up, Math.min(1.0, 8.0 * dt));
+  }
+
+  private handleAsteroidCollisions(): void {
+    const hit = this.asteroidField.checkCollision(this.ship.position, 3.2);
+    if (hit) {
+      const bounceNormal = this.ship.position.clone().sub(hit.position);
+      if (bounceNormal.lengthSq() === 0) {
+        bounceNormal.set(0, 1, 0);
+      } else {
+        bounceNormal.normalize();
+      }
+
+      // Push ship safely outside asteroid radius
+      this.ship.position.copy(hit.position).addScaledVector(bounceNormal, hit.radius + 3.4);
+
+      // Reflect and damp velocity
+      const currentSpeed = this.ship.velocity.length();
+      this.ship.velocity.reflect(bounceNormal).multiplyScalar(0.55);
+
+      // Apply kinetic impact damage
+      const impactDamage = Math.max(12, currentSpeed * 0.45);
+      const res = this.ship.takeDamage(impactDamage);
+
+      if (res.isDestroyed) {
+        // Reset ship safely in harbor after critical hull rupture
+        this.ship.reset(new THREE.Vector3(0, 0, 0));
+      }
+    }
   }
 
   private updateHUD(): void {
@@ -244,6 +278,8 @@ export class ApexPrimeGame {
 
     this.pollInput();
     this.ship.update(dt, this.input);
+    this.asteroidField.update(dt);
+    this.handleAsteroidCollisions();
     this.updateCamera(dt);
     this.updateHUD();
 
