@@ -81,4 +81,18 @@ describe('AsteroidFieldManager 3D Belt & Collision Engine', () => {
       expect(target.rotation.x).not.toBe(initialRotX);
     }
   });
+
+  it('regenerates destroyed asteroids after mineral respawn timer', () => {
+    const manager = new AsteroidFieldManager(testConfig);
+    const target = manager.asteroids[0];
+
+    // Destroy asteroid
+    manager.damageAsteroid(target.id, 9999);
+    expect(target.isDestroyed).toBe(true);
+
+    // Advance 41 seconds
+    manager.update(41.0);
+    expect(target.isDestroyed).toBe(false);
+    expect(target.health).toBe(target.maxHealth);
+  });
 });

@@ -73,4 +73,21 @@ describe('Enemy AI Drones & Fleet Dogfight Engine', () => {
     expect(hitRes.hits).toBe(1);
     expect(targetDrone.data.shields).toBeLessThan(40);
   });
+
+  it('respawns destroyed drones after reinforcement timer', () => {
+    const fleet = new EnemyFleetManager(1);
+    const combat = new CombatSystem();
+    const drone = fleet.drones[0];
+
+    // Destroy drone
+    drone.takeDamage(100);
+    expect(drone.data.isAlive).toBe(false);
+    expect(fleet.getActiveCount()).toBe(0);
+
+    // Update fleet for 23 seconds
+    fleet.update(23.0, new THREE.Vector3(0, 0, 0), combat);
+    expect(drone.data.isAlive).toBe(true);
+    expect(fleet.getActiveCount()).toBe(1);
+    expect(drone.data.shields).toBe(drone.data.maxShields);
+  });
 });

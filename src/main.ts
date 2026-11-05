@@ -182,6 +182,8 @@ export class ApexPrimeGame {
     // Position camera initially behind ship
     this.camera.position.set(0, 6, 20);
 
+    (window as any).__APEX_GAME__ = this;
+
     requestAnimationFrame((t) => this.loop(t));
   }
 
@@ -284,6 +286,10 @@ export class ApexPrimeGame {
     });
 
     window.addEventListener('mousedown', (e) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('.modal-overlay') || target?.closest('#station-dock-banner') || target?.closest('button')) {
+        return;
+      }
       if (e.button === 0) {
         this.isMouseDown = true;
       }
@@ -298,13 +304,13 @@ export class ApexPrimeGame {
 
   private pollInput(): void {
     // Forward Throttle
-    const throttleKey = this.keysDown.has('KeyW') || this.keysDown.has('ShiftLeft') || this.keysDown.has('ArrowUp');
+    const throttleKey = this.keysDown.has('KeyW') || this.keysDown.has('ShiftLeft');
     this.input.throttle = throttleKey ? 1.0 : 0.0;
 
-    // Pitch (W/S or Up/Down)
+    // Pitch (ArrowDown / KeyS = nose up, ArrowUp = nose down)
     let pitch = 0;
-    if (this.keysDown.has('KeyS') || this.keysDown.has('ArrowDown')) pitch += 1.0; // nose up
-    if (this.keysDown.has('KeyW') && !this.keysDown.has('ShiftLeft')) pitch -= 0.6; // subtle nose down on pure W
+    if (this.keysDown.has('KeyS') || this.keysDown.has('ArrowDown')) pitch += 1.0;
+    if (this.keysDown.has('ArrowUp')) pitch -= 1.0;
     this.input.pitch = pitch;
 
     // Yaw (A/D or Left/Right)
@@ -439,6 +445,10 @@ export class ApexPrimeGame {
     // Space Station & Tractor Docking System Update
     const stationRes = this.station.update(dt, this.ship, false);
     if (stationRes.status === 'APPROACH') {
+      this.hudDockingPrompt.innerHTML = '<span class="prompt-key">[E]</span> ENGAGE TRACTOR DOCKING BEAM';
+      this.hudDockingPrompt.classList.remove('hidden');
+    } else if (stationRes.status === 'DOCKING') {
+      this.hudDockingPrompt.innerHTML = '<span class="prompt-key" style="color: #00ff88; border-color: #00ff88;">TRACTOR ACTIVE</span> CAPTURING STARSHIP...';
       this.hudDockingPrompt.classList.remove('hidden');
     } else {
       this.hudDockingPrompt.classList.add('hidden');

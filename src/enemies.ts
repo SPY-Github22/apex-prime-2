@@ -19,6 +19,7 @@ export interface DroneData {
   patrolTimer: number;
   fireCooldownTimer: number;
   evadeTimer: number;
+  respawnTimer: number;
 }
 
 export class EnemyDrone {
@@ -48,7 +49,8 @@ export class EnemyDrone {
       patrolWaypoint: this.generateRandomWaypoint(initialPos),
       patrolTimer: 0,
       fireCooldownTimer: 0,
-      evadeTimer: 0
+      evadeTimer: 0,
+      respawnTimer: 0
     };
 
     this.mesh = this.buildDroneMesh();
@@ -244,6 +246,7 @@ export class EnemyDrone {
     this.data.shields = this.data.maxShields;
     this.data.isAlive = true;
     this.data.state = 'PATROL';
+    this.data.respawnTimer = 0;
     this.mesh.position.copy(this.data.position);
     this.mesh.quaternion.copy(this.data.quaternion);
     this.mesh.visible = true;
@@ -279,7 +282,19 @@ export class EnemyFleetManager {
   public update(dt: number, playerPos: THREE.Vector3, combat: CombatSystem): { shotsFired: number } {
     let shotsFired = 0;
     for (const drone of this.drones) {
-      if (!drone.data.isAlive) continue;
+      if (!drone.data.isAlive) {
+        drone.data.respawnTimer += dt;
+        if (drone.data.respawnTimer >= 22.0) {
+          const angle = Math.random() * Math.PI * 2;
+          const distance = 260 + Math.random() * 220;
+          drone.respawn(new THREE.Vector3(
+            Math.cos(angle) * distance,
+            (Math.random() - 0.5) * 50,
+            Math.sin(angle) * distance
+          ));
+        }
+        continue;
+      }
       const fired = drone.update(dt, playerPos, combat);
       if (fired) shotsFired++;
     }

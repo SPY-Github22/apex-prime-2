@@ -182,15 +182,16 @@ export class SpaceStation {
     } else if (this.data.status === 'DOCKING') {
       // Tractor beam pulls ship to docking pad and dampens velocity
       const targetPos = this.data.dockingBayPos.clone().add(new THREE.Vector3(0, 0, 8));
-      ship.position.lerp(targetPos, Math.min(1.0, 4.0 * dt));
-      ship.velocity.multiplyScalar(Math.pow(0.1, dt)); // rapidly kill velocity
+      ship.position.lerp(targetPos, Math.min(1.0, 5.0 * dt));
+      ship.velocity.multiplyScalar(Math.pow(0.05, dt)); // rapidly kill velocity
 
       // Align ship to face station core
       const targetQuat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0);
-      ship.quaternion.slerp(targetQuat, Math.min(1.0, 3.5 * dt));
+      ship.quaternion.slerp(targetQuat, Math.min(1.0, 4.0 * dt));
 
-      if (ship.position.distanceTo(targetPos) < 1.5 && ship.velocity.length() < 1.0) {
+      if (ship.position.distanceTo(targetPos) < 2.5 && ship.velocity.length() < 2.0) {
         this.data.status = 'DOCKED';
+        ship.position.copy(targetPos);
         ship.velocity.set(0, 0, 0);
       }
     } else if (this.data.status === 'DOCKED') {

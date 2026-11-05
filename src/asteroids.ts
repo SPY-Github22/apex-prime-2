@@ -10,6 +10,7 @@ export interface AsteroidData {
   health: number;
   minerals: number;
   isDestroyed: boolean;
+  respawnTimer?: number;
 }
 
 export interface AsteroidFieldConfig {
@@ -166,12 +167,26 @@ export class AsteroidFieldManager {
   }
 
   public update(dt: number): void {
-    // Tumble asteroids in 3D
+    // Tumble asteroids in 3D & handle mineral regeneration
     let updatedAny = false;
 
     for (let i = 0; i < this.asteroids.length; i++) {
       const ast = this.asteroids[i];
-      if (ast.isDestroyed) continue;
+      if (ast.isDestroyed) {
+        ast.respawnTimer = (ast.respawnTimer || 0) + dt;
+        if (ast.respawnTimer >= 40.0) {
+          ast.isDestroyed = false;
+          ast.health = ast.maxHealth;
+          ast.respawnTimer = 0;
+          this.dummy.position.copy(ast.position);
+          this.dummy.rotation.copy(ast.rotation);
+          this.dummy.scale.set(ast.radius, ast.radius, ast.radius);
+          this.dummy.updateMatrix();
+          this.mesh.setMatrixAt(i, this.dummy.matrix);
+          updatedAny = true;
+        }
+        continue;
+      }
 
       ast.rotation.x += ast.rotationSpeed.x * dt;
       ast.rotation.y += ast.rotationSpeed.y * dt;
