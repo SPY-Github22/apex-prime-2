@@ -51,6 +51,16 @@ describe('CombatSystem 3D Lasers, Ballistics & Particle Engine', () => {
     expect(combat.getActiveLaserCount()).toBe(0);
   });
 
+  it('incorporates extra damage from weapon upgrades', () => {
+    const combat = new CombatSystem();
+    const forward = new THREE.Vector3(0, 0, -1);
+    const shipVel = new THREE.Vector3(0, 0, 0);
+
+    combat.fire(muzzles, forward, shipVel, false, 25);
+    const laser = combat.lasers.find((l) => l.isAlive)!;
+    expect(laser.damage).toBe(combat.laserDamage + 25);
+  });
+
   it('collides with asteroids, damages them, and spawns impact explosions', () => {
     const combat = new CombatSystem();
     const config: AsteroidFieldConfig = {

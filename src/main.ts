@@ -5,6 +5,9 @@ import { AsteroidFieldManager } from './asteroids';
 import { CombatSystem } from './combat';
 import { EnemyFleetManager } from './enemies';
 import { SpaceStation } from './station';
+import { StarbaseShop } from './shop';
+import { QuestManager } from './quests';
+import { TerminalUI } from './terminal_ui';
 
 export class ApexPrimeGame {
   private scene: THREE.Scene;
@@ -18,6 +21,9 @@ export class ApexPrimeGame {
   public combat: CombatSystem;
   public enemyFleet: EnemyFleetManager;
   public station: SpaceStation;
+  public shop: StarbaseShop;
+  public quests: QuestManager;
+  public terminalUI: TerminalUI;
 
   // Flight input state
   private input: FlightInput = {
@@ -82,6 +88,7 @@ export class ApexPrimeGame {
     if (this.btnUndock) {
       this.btnUndock.addEventListener('click', () => {
         if (this.station.data.status === 'DOCKED') {
+          this.terminalUI.close();
           this.station.undock(this.ship);
         }
       });
@@ -107,6 +114,28 @@ export class ApexPrimeGame {
     // Initialize Orbital Space Station (Starbase Horizon-9)
     this.station = new SpaceStation('STARBASE HORIZON-9', 'THE SOLAR ALLIANCE', new THREE.Vector3(0, 45, -280));
     this.scene.add(this.station.mesh);
+
+    // Initialize Starbase Shop & Quest Engine
+    this.shop = new StarbaseShop();
+    this.quests = new QuestManager();
+    this.terminalUI = new TerminalUI({
+      shop: this.shop,
+      quests: this.quests,
+      ship: this.ship,
+      getCredits: () => this.telemetry.credits,
+      setCredits: (cr: number) => {
+        this.telemetry.credits = cr;
+      }
+    });
+
+    const btnOpenTerminal = document.getElementById('btn-open-terminal');
+    if (btnOpenTerminal) {
+      btnOpenTerminal.addEventListener('click', () => {
+        if (this.station.data.status === 'DOCKED') {
+          this.terminalUI.open();
+        }
+      });
+    }
 
     this.telemetry = {
       pos: { x: 0, y: 0, z: 0 },
@@ -199,7 +228,22 @@ export class ApexPrimeGame {
         if (this.station.data.status === 'APPROACH') {
           this.station.data.status = 'DOCKING';
         } else if (this.station.data.status === 'DOCKED') {
+          this.terminalUI.close();
           this.station.undock(this.ship);
+        }
+      }
+
+      // Open/close station terminal when docked
+      if (e.code === 'KeyT') {
+        if (this.station.data.status === 'DOCKED') {
+          this.terminalUI.toggle();
+        }
+      }
+
+      // Close modal on Escape
+      if (e.code === 'Escape') {
+        if (this.terminalUI.isOpen()) {
+          this.terminalUI.close();
         }
       }
     });
@@ -373,16 +417,23 @@ export class ApexPrimeGame {
       this.hudStationDockBanner.classList.remove('hidden');
     } else {
       this.hudStationDockBanner.classList.add('hidden');
+      if (this.terminalUI.isOpen()) {
+        this.terminalUI.close();
+      }
     }
 
-    // Combat: Laser Firing (Click or KeyF or KeyJ) - disabled while docked
+    // Combat: Laser Firing (Click or KeyF or KeyJ) - disabled while docked or inside terminal
     const isFiring = (this.isMouseDown || this.keysDown.has('KeyF') || this.keysDown.has('KeyJ') || this.keysDown.has('Enter'))
-      && this.station.data.status !== 'DOCKED';
+      && this.station.data.status !== 'DOCKED'
+      && !this.terminalUI.isOpen();
     if (isFiring) {
+      const extraDamage = this.shop.getWeaponDamageBonus();
       this.combat.fire(
         this.ship.getLaserMuzzlePositions(),
         this.ship.getForwardVector(),
-        this.ship.velocity
+        this.ship.velocity,
+        false,
+        extraDamage
       );
     }
 
@@ -393,6 +444,15 @@ export class ApexPrimeGame {
     if (combatHits.mineralsEarned > 0) {
       this.telemetry.credits += combatHits.mineralsEarned;
     }
+    if (combatHits.destroyedAsteroids > 0) {
+      for (let i = 0; i < combatHits.destroyedAsteroids; i++) {
+        const qRes = this.quests.onAsteroidMined();
+        if (qRes.newlyReady.length > 0) {
+          this.terminalUI.showHUDToast(`MISSION READY: ${qRes.newlyReady[0].title} (Dock at Station)`);
+        }
+      }
+      this.terminalUI.updateHUDMissionTracker();
+    }
 
     // Update enemy AI drones and dogfighting
     this.enemyFleet.update(dt, this.ship.position, this.combat);
@@ -401,6 +461,22 @@ export class ApexPrimeGame {
     const enemyHits = this.enemyFleet.checkPlayerLaserHits(this.combat);
     if (enemyHits.totalBounty > 0) {
       this.telemetry.credits += enemyHits.totalBounty;
+    }
+    if (enemyHits.killed > 0) {
+      for (let i = 0; i < enemyHits.killed; i++) {
+        const qRes = this.quests.onEnemyDestroyed();
+        if (qRes.newlyReady.length > 0) {
+          this.terminalUI.showHUDToast(`MISSION READY: ${qRes.newlyReady[0].title} (Dock at Station)`);
+        }
+      }
+      this.terminalUI.updateHUDMissionTracker();
+    }
+
+    // Check navigation coordinate waypoints
+    const navRes = this.quests.onPositionUpdate(this.ship.position);
+    if (navRes.newlyReady.length > 0) {
+      this.terminalUI.showHUDToast(`BEACON REACHED: ${navRes.newlyReady[0].title} (Dock at Station)`);
+      this.terminalUI.updateHUDMissionTracker();
     }
 
     // Check enemy lasers hitting player starship

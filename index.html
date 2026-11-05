@@ -14,6 +14,7 @@
         <div class="hud-title">A.P.E.X. PRIME 2 // VOID VANGUARD</div>
         <div class="hud-stat">SECTOR: <span id="hud-sector" class="hud-accent">ALPHA CENTAURI CORE</span></div>
         <div class="hud-stat">COORDINATES: <span id="hud-coords">0, 0, 0</span></div>
+        <div class="hud-stat">MISSION: <span id="hud-mission" class="hud-accent-gold">NONE (DOCK TO ACCEPT)</span></div>
       </div>
       <div class="hud-top-right">
         <div class="hud-stat">SHIELDS: <span id="hud-shields" class="hud-accent-shields">100%</span></div>
@@ -35,11 +36,69 @@
         <div class="station-banner-content">
           <div class="station-banner-title">STARBASE HORIZON-9 // DOCKED</div>
           <div class="station-banner-sub">ALLIANCE HARBOR &bull; REPAIR & REARM ACTIVE</div>
-          <button id="btn-undock" class="banner-btn">[E] UNDOCK & LAUNCH</button>
+          <div class="banner-btn-group">
+            <button id="btn-open-terminal" class="banner-btn banner-btn-terminal">[T] STATION TERMINAL</button>
+            <button id="btn-undock" class="banner-btn">[E] UNDOCK & LAUNCH</button>
+          </div>
+        </div>
+      </div>
+      <div id="hud-toast" class="hud-toast hidden"></div>
+    </div>
+    <div id="crosshair"></div>
+
+    <!-- STARBASE INTERACTIVE TERMINAL MODAL -->
+    <div id="station-terminal-modal" class="modal-overlay hidden">
+      <div class="modal-window">
+        <div class="modal-header">
+          <div class="modal-header-left">
+            <div class="modal-title">STARBASE HORIZON-9 // LOGISTICS & MISSION HUB</div>
+            <div class="modal-credits">BALANCE: <span id="terminal-credits" class="hud-accent-gold">2,500 CR</span></div>
+          </div>
+          <button id="modal-close-btn" class="modal-close">&times; CLOSE [T / ESC]</button>
+        </div>
+
+        <div class="terminal-nav">
+          <button id="tab-btn-shop" class="tab-btn active">UPGRADE WORKSHOP</button>
+          <button id="tab-btn-quests" class="tab-btn">MISSION BOARD</button>
+          <button id="tab-btn-lore" class="tab-btn">AURA INTEL & LORE</button>
+        </div>
+
+        <div id="terminal-toast" class="terminal-toast hidden"></div>
+
+        <!-- TAB 1: UPGRADE WORKSHOP -->
+        <div id="tab-content-shop" class="tab-content">
+          <div id="shop-cards-grid" class="shop-grid"></div>
+        </div>
+
+        <!-- TAB 2: MISSION BOARD -->
+        <div id="tab-content-quests" class="tab-content hidden">
+          <div id="quests-container" class="quests-container"></div>
+        </div>
+
+        <!-- TAB 3: AURA INTEL & LORE -->
+        <div id="tab-content-lore" class="tab-content hidden">
+          <div class="lore-container">
+            <div class="lore-entry">
+              <div class="lore-title">ACT I: THE HOLLOW PROTOCOL // SECTOR 1: VALLES ASTEROID RIM</div>
+              <div class="lore-meta">CLASSIFIED SOLAR ALLIANCE DOSSIER &bull; ARCHON SIGNAL INTERCEPT</div>
+              <p class="lore-text">
+                The Solar Alliance outpost Horizon-9 anchors the fringe of human colonized space. For decades, Belter prospectors like Kaelen Voss harvested the dense titanium vein within the Valles Rim. But recently, ghost signals radiating at 1.420 GHz—the hydrogen line—have begun pulsing from deep beneath the asteroids.
+              </p>
+              <p class="lore-text">
+                Rogue pirate drones of the Obsidian Syndicate have swarmed the sector, seemingly drawn to an ancient alien obelisk known as the "Whispering Monolith". Alliance Commander Vance suspects the Syndicate is not mere scavengers, but heralds seeking to awaken the legendary First Archon: The Iron Colossus.
+              </p>
+            </div>
+            <div class="lore-entry">
+              <div class="lore-title">COMPANION AI: A.U.R.A. (Automated Unified Recon Analyst)</div>
+              <div class="lore-meta">HEURISTIC NEURAL CO-PILOT VERSION 4.2</div>
+              <p class="lore-text">
+                "Greetings Commander. I am AURA. I monitor your starship's kinetic deflectors, flight trajectories, and sub-space transmissions. As we destroy hostiles and complete sector contracts, I will decrypt additional intelligence regarding the 7 Archons and the Dark Beacon."
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div id="crosshair"></div>
   </div>
   <script type="module" src="./src/main.ts"></script>
 </body>

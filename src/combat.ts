@@ -123,7 +123,8 @@ export class CombatSystem {
     muzzles: { left: THREE.Vector3; right: THREE.Vector3 },
     forwardDir: THREE.Vector3,
     shipVelocity: THREE.Vector3,
-    isEnemy = false
+    isEnemy = false,
+    extraDamage = 0
   ): boolean {
     if (this.fireTimer > 0) return false;
 
@@ -140,7 +141,7 @@ export class CombatSystem {
     laser.position.copy(spawnPos);
     laser.lifetime = 0;
     laser.maxLifetime = this.laserLifetime;
-    laser.damage = this.laserDamage;
+    laser.damage = this.laserDamage + extraDamage;
 
     // Ballistic velocity = forward vector * laser speed + ship inertia
     laser.velocity.copy(forwardDir).multiplyScalar(this.laserSpeed).add(shipVelocity);
