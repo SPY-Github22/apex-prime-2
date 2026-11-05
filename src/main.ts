@@ -4,6 +4,7 @@ import { Starship, FlightInput } from './ship';
 import { AsteroidFieldManager } from './asteroids';
 import { CombatSystem } from './combat';
 import { EnemyFleetManager } from './enemies';
+import { SpaceStation } from './station';
 
 export class ApexPrimeGame {
   private scene: THREE.Scene;
@@ -16,6 +17,7 @@ export class ApexPrimeGame {
   public asteroidField: AsteroidFieldManager;
   public combat: CombatSystem;
   public enemyFleet: EnemyFleetManager;
+  public station: SpaceStation;
 
   // Flight input state
   private input: FlightInput = {
@@ -39,6 +41,9 @@ export class ApexPrimeGame {
   private hudCredits: HTMLElement;
   private hudSpeed: HTMLElement;
   private hudBoostFill: HTMLElement;
+  private hudDockingPrompt: HTMLElement;
+  private hudStationDockBanner: HTMLElement;
+  private btnUndock: HTMLElement;
 
   private telemetry: ShipTelemetry;
 
@@ -70,6 +75,17 @@ export class ApexPrimeGame {
     this.hudCredits = document.getElementById('hud-credits')!;
     this.hudSpeed = document.getElementById('hud-speed')!;
     this.hudBoostFill = document.getElementById('hud-boost-fill')!;
+    this.hudDockingPrompt = document.getElementById('docking-prompt')!;
+    this.hudStationDockBanner = document.getElementById('station-dock-banner')!;
+    this.btnUndock = document.getElementById('btn-undock')!;
+
+    if (this.btnUndock) {
+      this.btnUndock.addEventListener('click', () => {
+        if (this.station.data.status === 'DOCKED') {
+          this.station.undock(this.ship);
+        }
+      });
+    }
 
     // Initialize Starship
     this.ship = new Starship(new THREE.Vector3(0, 0, 0));
@@ -87,6 +103,10 @@ export class ApexPrimeGame {
     // Initialize Autonomous Enemy AI Fleet
     this.enemyFleet = new EnemyFleetManager(8);
     this.scene.add(this.enemyFleet.squadGroup);
+
+    // Initialize Orbital Space Station (Starbase Horizon-9)
+    this.station = new SpaceStation('STARBASE HORIZON-9', 'THE SOLAR ALLIANCE', new THREE.Vector3(0, 45, -280));
+    this.scene.add(this.station.mesh);
 
     this.telemetry = {
       pos: { x: 0, y: 0, z: 0 },
@@ -173,6 +193,15 @@ export class ApexPrimeGame {
   private setupControls(): void {
     window.addEventListener('keydown', (e) => {
       this.keysDown.add(e.code);
+
+      // Station docking / undocking interaction
+      if (e.code === 'KeyE') {
+        if (this.station.data.status === 'APPROACH') {
+          this.station.data.status = 'DOCKING';
+        } else if (this.station.data.status === 'DOCKED') {
+          this.station.undock(this.ship);
+        }
+      }
     });
 
     window.addEventListener('keyup', (e) => {
@@ -209,10 +238,10 @@ export class ApexPrimeGame {
     if (this.keysDown.has('KeyD') || this.keysDown.has('ArrowRight')) yaw += 1.0;
     this.input.yaw = yaw;
 
-    // Roll (Q/E)
+    // Roll (Q/E) - suppress KeyE roll if station docking interaction is active
     let roll = 0;
     if (this.keysDown.has('KeyQ')) roll -= 1.0;
-    if (this.keysDown.has('KeyE')) roll += 1.0;
+    if (this.keysDown.has('KeyE') && this.station.data.status === 'UNDOCKED') roll += 1.0;
     this.input.roll = roll;
 
     // Afterburner Boost (Space or Tab)
@@ -326,10 +355,29 @@ export class ApexPrimeGame {
     const dt = Math.min(0.1, this.clock.getDelta());
 
     this.pollInput();
-    this.ship.update(dt, this.input);
 
-    // Combat: Laser Firing (Click or KeyF or KeyJ)
-    const isFiring = this.isMouseDown || this.keysDown.has('KeyF') || this.keysDown.has('KeyJ') || this.keysDown.has('Enter');
+    // Normal flight controls active unless locked in tractor dock
+    if (this.station.data.status !== 'DOCKED' && this.station.data.status !== 'DOCKING') {
+      this.ship.update(dt, this.input);
+    }
+
+    // Space Station & Tractor Docking System Update
+    const stationRes = this.station.update(dt, this.ship, false);
+    if (stationRes.status === 'APPROACH') {
+      this.hudDockingPrompt.classList.remove('hidden');
+    } else {
+      this.hudDockingPrompt.classList.add('hidden');
+    }
+
+    if (stationRes.status === 'DOCKED') {
+      this.hudStationDockBanner.classList.remove('hidden');
+    } else {
+      this.hudStationDockBanner.classList.add('hidden');
+    }
+
+    // Combat: Laser Firing (Click or KeyF or KeyJ) - disabled while docked
+    const isFiring = (this.isMouseDown || this.keysDown.has('KeyF') || this.keysDown.has('KeyJ') || this.keysDown.has('Enter'))
+      && this.station.data.status !== 'DOCKED';
     if (isFiring) {
       this.combat.fire(
         this.ship.getLaserMuzzlePositions(),
