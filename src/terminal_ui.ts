@@ -148,14 +148,14 @@ export class TerminalUI {
     }
   }
 
-  public showHUDToast(msg: string): void {
+  public showHUDToast(msg: string, durationMs = 4000): void {
     if (this.hudToast) {
       this.hudToast.innerText = msg;
       this.hudToast.classList.remove('hidden');
       if (this.hudToastTimer) window.clearTimeout(this.hudToastTimer);
       this.hudToastTimer = window.setTimeout(() => {
         this.hudToast?.classList.add('hidden');
-      }, 4000);
+      }, durationMs);
     }
   }
 

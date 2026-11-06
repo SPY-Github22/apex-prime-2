@@ -13,6 +13,7 @@ import { SectorWarpGate } from './warpgate';
 import { DerelictFieldManager } from './derelicts';
 import { CyberPhantomFleetManager } from './phantoms';
 import { ChronoPhantomBoss } from './boss2';
+import { TutorialManager } from './tutorial';
 
 export class ApexPrimeGame {
   private scene: THREE.Scene;
@@ -34,6 +35,7 @@ export class ApexPrimeGame {
   public warpGate: SectorWarpGate;
   public derelicts: DerelictFieldManager;
   public phantoms: CyberPhantomFleetManager;
+  public tutorial: TutorialManager;
 
   // Flight input state
   private input: FlightInput = {
@@ -68,6 +70,8 @@ export class ApexPrimeGame {
   private hudWarpPrompt: HTMLElement;
   private hudSalvagePrompt: HTMLElement;
   private hudTemporalWarning: HTMLElement;
+  private hudBeaconText: HTMLElement | null;
+  private btnOpenTutorial: HTMLElement | null;
 
   private telemetry: ShipTelemetry;
 
@@ -87,7 +91,7 @@ export class ApexPrimeGame {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.3;
+    this.renderer.toneMappingExposure = 1.45;
     this.container.appendChild(this.renderer.domElement);
 
     // Initialize HUD references
@@ -183,6 +187,27 @@ export class ApexPrimeGame {
       });
     }
 
+    this.hudBeaconText = document.getElementById('beacon-text');
+    this.btnOpenTutorial = document.getElementById('btn-open-tutorial');
+
+    this.tutorial = new TutorialManager(() => {
+      this.terminalUI.showHUDToast('AURA: Systems initialized. Starbase Horizon-9 is directly ahead (Press E to dock)!', 6000);
+    });
+
+    if (this.btnOpenTutorial) {
+      this.btnOpenTutorial.addEventListener('click', () => {
+        this.tutorial.open();
+      });
+    }
+
+    if (this.tutorial.shouldAutoShow()) {
+      this.tutorial.open(0);
+    } else {
+      setTimeout(() => {
+        this.terminalUI.showHUDToast('AURA: Welcome Pilot Vesper-01. Starbase Horizon-9 is ahead (Press E to dock, or H for manual).', 5000);
+      }, 600);
+    }
+
     this.telemetry = {
       pos: { x: 0, y: 0, z: 0 },
       vel: { x: 0, y: 0, z: 0 },
@@ -212,17 +237,38 @@ export class ApexPrimeGame {
   }
 
   private initLights(): void {
-    const ambientLight = new THREE.AmbientLight(0x223344, 1.4);
-    this.scene.add(ambientLight);
+    // 1. Balanced sky/ground hemisphere light providing full-spectrum fill illumination
+    const hemiLight = new THREE.HemisphereLight(0xbadfff, 0x223355, 2.2);
+    this.scene.add(hemiLight);
 
-    const sunLight = new THREE.DirectionalLight(0xfff4e0, 3.2);
-    sunLight.position.set(500, 400, 250);
+    // 2. Powerful primary solar directional light with crisp highlights
+    const sunLight = new THREE.DirectionalLight(0xffffff, 4.0);
+    sunLight.position.set(450, 600, 300);
     this.scene.add(sunLight);
 
-    // Subtle blue fill light from below
-    const fillLight = new THREE.DirectionalLight(0x0044aa, 1.0);
-    fillLight.position.set(-300, -200, -100);
-    this.scene.add(fillLight);
+    // 3. Forward fill & rim light illuminating approaching space stations, asteroids, and targets
+    const forwardRimLight = new THREE.DirectionalLight(0x00f3ff, 2.2);
+    forwardRimLight.position.set(0, 200, -700);
+    this.scene.add(forwardRimLight);
+
+    // 4. Counter fill light for deep space shadow softening
+    const counterFillLight = new THREE.DirectionalLight(0x5577bb, 1.8);
+    counterFillLight.position.set(-350, -250, 100);
+    this.scene.add(counterFillLight);
+
+    // 5. Cinematic ship key light mounted above the hull
+    const shipKeyLight = new THREE.PointLight(0xffffff, 3.5, 60, 1.1);
+    shipKeyLight.position.set(0, 4.0, 5.0);
+    this.ship.mesh.add(shipKeyLight);
+
+    // 6. High-power tactical starship searchlight illuminating space ahead
+    const shipHeadlight = new THREE.SpotLight(0xaae8ff, 6.0, 220, Math.PI / 4, 0.35);
+    shipHeadlight.position.set(0, 0, -2.5);
+    const headlightTarget = new THREE.Object3D();
+    headlightTarget.position.set(0, 0, -60);
+    this.ship.mesh.add(headlightTarget);
+    shipHeadlight.target = headlightTarget;
+    this.ship.mesh.add(shipHeadlight);
   }
 
   private initStarfield(): void {
@@ -315,8 +361,20 @@ export class ApexPrimeGame {
         }
       }
 
+      // Flight Academy & Tutorial Manual toggle
+      if (e.code === 'KeyH') {
+        if (this.tutorial.isOpen()) {
+          this.tutorial.close();
+        } else {
+          this.tutorial.open();
+        }
+      }
+
       // Close modal on Escape
       if (e.code === 'Escape') {
+        if (this.tutorial.isOpen()) {
+          this.tutorial.close();
+        }
         if (this.terminalUI.isOpen()) {
           this.terminalUI.close();
         }
@@ -345,6 +403,16 @@ export class ApexPrimeGame {
   }
 
   private pollInput(): void {
+    if (this.tutorial.isOpen() || this.terminalUI.isOpen()) {
+      this.input.throttle = 0;
+      this.input.pitch = 0;
+      this.input.yaw = 0;
+      this.input.roll = 0;
+      this.input.boost = false;
+      this.input.brake = true;
+      return;
+    }
+
     // Forward Throttle
     const throttleKey = this.keysDown.has('KeyW') || this.keysDown.has('ShiftLeft');
     this.input.throttle = throttleKey ? 1.0 : 0.0;
@@ -464,6 +532,15 @@ export class ApexPrimeGame {
     this.hudCoords.innerText = `${Math.round(this.ship.position.x)}, ${Math.round(this.ship.position.y)}, ${Math.round(this.ship.position.z)}`;
     this.hudSector.innerText = this.telemetry.currentSector;
     this.hudCredits.innerText = `${this.telemetry.credits.toLocaleString()} CR`;
+
+    if (this.hudBeaconText) {
+      if (this.station.data.status === 'DOCKED') {
+        this.hudBeaconText.innerText = 'STATUS: DOCKED AT HORIZON-9 [T TERMINAL / E UNDOCK]';
+      } else {
+        const dist = Math.round(this.ship.position.distanceTo(this.station.data.position));
+        this.hudBeaconText.innerText = `OBJECTIVE: STARBASE HORIZON-9 [E DOCK] • ${dist}M`;
+      }
+    }
   }
 
   private setupWindowResize(): void {

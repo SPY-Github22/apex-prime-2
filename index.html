@@ -11,10 +11,17 @@
     <div id="webgl-canvas-container"></div>
     <div id="hud">
       <div class="hud-top-left">
-        <div class="hud-title">A.P.E.X. PRIME 2 // VOID VANGUARD</div>
+        <div class="hud-title-row">
+          <div class="hud-title">A.P.E.X. PRIME 2 // VOID VANGUARD</div>
+          <button id="btn-open-tutorial" class="hud-help-btn" title="Open Flight Academy Tutorial [H]">[H] FLIGHT MANUAL</button>
+        </div>
         <div class="hud-stat">SECTOR: <span id="hud-sector" class="hud-accent">ALPHA CENTAURI CORE</span></div>
         <div class="hud-stat">COORDINATES: <span id="hud-coords">0, 0, 0</span></div>
         <div class="hud-stat">MISSION: <span id="hud-mission" class="hud-accent-gold">NONE (DOCK TO ACCEPT)</span></div>
+        <div id="hud-nav-beacon" class="hud-nav-beacon">
+          <span class="beacon-pulse">◉</span>
+          <span id="beacon-text">OBJECTIVE: STARBASE HORIZON-9 [E DOCK] &bull; 280M</span>
+        </div>
       </div>
       <div class="hud-top-right">
         <div class="hud-stat">SHIELDS: <span id="hud-shields" class="hud-accent-shields">100%</span></div>
@@ -123,6 +130,47 @@
                 "Greetings Commander. I am AURA. I monitor your starship's kinetic deflectors, flight trajectories, and sub-space transmissions. As we destroy hostiles and complete sector contracts, I will decrypt additional intelligence regarding the 7 Archons and the Dark Beacon."
               </p>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PILOT FLIGHT ACADEMY & MISSION BRIEFING MODAL -->
+    <div id="tutorial-modal" class="modal-overlay hidden">
+      <div class="modal-window tutorial-window">
+        <div class="modal-header">
+          <div class="modal-header-left">
+            <div class="tutorial-badge-row">
+              <span id="tutorial-badge" class="tutorial-badge">STAGE 01 // OVERVIEW</span>
+              <span id="tutorial-step-count" class="tutorial-step-count">STEP 1 OF 5</span>
+            </div>
+            <div id="tutorial-title" class="modal-title">WELCOME PILOT // MISSION OBJECTIVES</div>
+            <div id="tutorial-subtitle" class="tutorial-subtitle">APEX PRIME 2: A 3D OPEN-WORLD SPACE SAGA</div>
+          </div>
+          <button id="tutorial-close-btn" class="modal-close">&times; CLOSE [ESC]</button>
+        </div>
+
+        <div class="tutorial-body">
+          <div class="tutorial-dots-wrapper">
+            <div id="tutorial-dots" class="tutorial-dots"></div>
+          </div>
+
+          <p id="tutorial-summary" class="tutorial-summary"></p>
+
+          <div id="tutorial-bullets-grid" class="tutorial-grid"></div>
+
+          <div id="tutorial-protip" class="tutorial-protip"></div>
+        </div>
+
+        <div class="tutorial-footer">
+          <label class="tutorial-checkbox-label">
+            <input type="checkbox" id="tutorial-dont-show" />
+            <span>Don't show automatically on game start</span>
+          </label>
+          <div class="tutorial-nav-buttons">
+            <button id="tutorial-skip-btn" class="tutorial-btn tutorial-btn-secondary">SKIP</button>
+            <button id="tutorial-prev-btn" class="tutorial-btn tutorial-btn-secondary">&larr; PREVIOUS</button>
+            <button id="tutorial-next-btn" class="tutorial-btn tutorial-btn-primary">NEXT STEP &rarr;</button>
           </div>
         </div>
       </div>

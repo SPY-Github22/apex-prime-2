@@ -60,16 +60,22 @@ export class Starship {
 
     // Materials
     const hullMat = new THREE.MeshStandardMaterial({
-      color: 0x161c28,
-      metalness: 0.85,
-      roughness: 0.25
+      color: 0xf4f7fa, // Pristine arctic white hull
+      metalness: 0.25,
+      roughness: 0.35
+    });
+
+    const darkAccentMat = new THREE.MeshStandardMaterial({
+      color: 0x18202c,
+      metalness: 0.8,
+      roughness: 0.3
     });
 
     const trimMat = new THREE.MeshStandardMaterial({
       color: 0x00f3ff,
-      emissive: 0x005577,
-      emissiveIntensity: 0.6,
-      metalness: 0.9,
+      emissive: 0x0088cc,
+      emissiveIntensity: 0.7,
+      metalness: 0.7,
       roughness: 0.2
     });
 
@@ -158,11 +164,11 @@ export class Starship {
     const thrusterRingGeom = new THREE.CylinderGeometry(0.42, 0.48, 0.6, 12);
     thrusterRingGeom.rotateX(Math.PI / 2);
 
-    const leftThruster = new THREE.Mesh(thrusterRingGeom, hullMat);
+    const leftThruster = new THREE.Mesh(thrusterRingGeom, darkAccentMat);
     leftThruster.position.set(-0.8, 0, 2.7);
     group.add(leftThruster);
 
-    const rightThruster = new THREE.Mesh(thrusterRingGeom, hullMat);
+    const rightThruster = new THREE.Mesh(thrusterRingGeom, darkAccentMat);
     rightThruster.position.set(0.8, 0, 2.7);
     group.add(rightThruster);
 
