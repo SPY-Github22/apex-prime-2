@@ -175,6 +175,59 @@
         </div>
       </div>
     </div>
+
+    <!-- CINEMATIC STORY CUTSCENE OVERLAY -->
+    <div id="cinematic-overlay" class="cinematic-overlay hidden">
+      <!-- 21:9 Cinema Scope Letterbox Bars -->
+      <div class="cinematic-bar cinematic-bar-top"></div>
+      <div class="cinematic-bar cinematic-bar-bottom"></div>
+
+      <!-- Transmission Header & Freq Scan -->
+      <div class="cinematic-header">
+        <div class="cinematic-header-left">
+          <div class="cinematic-rec-indicator">
+            <span class="rec-dot"></span> REC // SEC-ENCRYPTED
+          </div>
+          <div id="cinematic-title" class="cinematic-title">ACT I: THE HOLLOW PROTOCOL</div>
+          <div id="cinematic-location" class="cinematic-location">SECTOR 01 // VALLES ASTEROID RIM</div>
+        </div>
+        <div class="cinematic-header-right">
+          <div class="cinematic-freq">FREQ: 1420.405 MHz &bull; SUB-SPACE LINK ESTABLISHED</div>
+          <button id="cinematic-skip-btn" class="cinematic-btn-skip">SKIP [SPACE / ESC]</button>
+        </div>
+      </div>
+
+      <!-- Holographic Transceiver & Character Comms Card -->
+      <div class="cinematic-comms-card">
+        <!-- Procedural Animated Canvas Avatar -->
+        <div class="cinematic-avatar-container">
+          <canvas id="character-avatar-canvas" width="200" height="200"></canvas>
+          <div class="avatar-scan-effect"></div>
+        </div>
+
+        <!-- Dialogue Content & Typewriter Text -->
+        <div class="cinematic-dialogue-content">
+          <div class="cinematic-speaker-meta">
+            <div class="speaker-name-row">
+              <span id="cinematic-speaker-name" class="cinematic-speaker-name">A.U.R.A.</span>
+              <span id="cinematic-speaker-badge" class="cinematic-speaker-badge">AI COMPANION</span>
+            </div>
+            <div id="cinematic-speaker-title" class="cinematic-speaker-title">NEURAL CO-PILOT // QUANTUM CORE v4.2</div>
+          </div>
+
+          <div class="cinematic-dialogue-box">
+            <p id="cinematic-dialogue-text" class="cinematic-dialogue-text"></p>
+            <div id="cinematic-continue-prompt" class="cinematic-continue-prompt hidden">
+              PRESS [ENTER / SPACE] TO ADVANCE &rarr;
+            </div>
+          </div>
+
+          <div class="cinematic-controls-row">
+            <button id="cinematic-next-btn" class="cinematic-btn-next">CONTINUE &rarr;</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   <script type="module" src="./src/main.ts"></script>
 </body>

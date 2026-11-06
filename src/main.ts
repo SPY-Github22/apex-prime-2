@@ -14,6 +14,9 @@ import { DerelictFieldManager } from './derelicts';
 import { CyberPhantomFleetManager } from './phantoms';
 import { ChronoPhantomBoss } from './boss2';
 import { TutorialManager } from './tutorial';
+import { AudioSynthesizer } from './audio_synth';
+import { CharacterVisualizer } from './characters';
+import { CutsceneDirector, PROLOGUE_CUTSCENE, BOSS1_INTRO_CUTSCENE } from './cutscene';
 
 export class ApexPrimeGame {
   private scene: THREE.Scene;
@@ -36,6 +39,10 @@ export class ApexPrimeGame {
   public derelicts: DerelictFieldManager;
   public phantoms: CyberPhantomFleetManager;
   public tutorial: TutorialManager;
+  public audioSynth: AudioSynthesizer;
+  public charVisualizer: CharacterVisualizer;
+  public cutscene: CutsceneDirector;
+  private hasPlayedBoss1Intro = false;
 
   // Flight input state
   private input: FlightInput = {
@@ -190,6 +197,11 @@ export class ApexPrimeGame {
     this.hudBeaconText = document.getElementById('beacon-text');
     this.btnOpenTutorial = document.getElementById('btn-open-tutorial');
 
+    this.audioSynth = new AudioSynthesizer();
+    const avatarCanvas = document.getElementById('character-avatar-canvas') as HTMLCanvasElement | null;
+    this.charVisualizer = new CharacterVisualizer(avatarCanvas || undefined);
+    this.cutscene = new CutsceneDirector(this.audioSynth, this.charVisualizer);
+
     this.tutorial = new TutorialManager(() => {
       this.terminalUI.showHUDToast('AURA: Systems initialized. Starbase Horizon-9 is directly ahead (Press E to dock)!', 6000);
     });
@@ -200,7 +212,20 @@ export class ApexPrimeGame {
       });
     }
 
-    if (this.tutorial.shouldAutoShow()) {
+    const hasSeenPrologue = typeof window !== 'undefined' && window.localStorage?.getItem('apex_prologue_seen') === 'true';
+    if (!hasSeenPrologue) {
+      // Launch Prologue story cutscene with animated characters & procedural audio
+      this.cutscene.play(PROLOGUE_CUTSCENE, () => {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem('apex_prologue_seen', 'true');
+        }
+        if (this.tutorial.shouldAutoShow()) {
+          this.tutorial.open(0);
+        } else {
+          this.terminalUI.showHUDToast('AURA: Systems initialized. Starbase Horizon-9 is directly ahead (Press E to dock)!', 6000);
+        }
+      });
+    } else if (this.tutorial.shouldAutoShow()) {
       this.tutorial.open(0);
     } else {
       setTimeout(() => {
@@ -315,6 +340,20 @@ export class ApexPrimeGame {
 
   private setupControls(): void {
     window.addEventListener('keydown', (e) => {
+      // Cutscene Interaction: Space or Enter advances line; Escape skips cutscene
+      if (this.cutscene.isActive()) {
+        if (e.code === 'Space' || e.code === 'Enter') {
+          this.cutscene.handleAdvanceOrNext();
+          e.preventDefault();
+          return;
+        }
+        if (e.code === 'Escape') {
+          this.cutscene.skip();
+          e.preventDefault();
+          return;
+        }
+      }
+
       this.keysDown.add(e.code);
 
       // Station docking / undocking interaction
@@ -387,7 +426,7 @@ export class ApexPrimeGame {
 
     window.addEventListener('mousedown', (e) => {
       const target = e.target as HTMLElement | null;
-      if (target?.closest('.modal-overlay') || target?.closest('#station-dock-banner') || target?.closest('button')) {
+      if (target?.closest('.modal-overlay') || target?.closest('.cinematic-overlay') || target?.closest('#station-dock-banner') || target?.closest('button')) {
         return;
       }
       if (e.button === 0) {
@@ -403,7 +442,7 @@ export class ApexPrimeGame {
   }
 
   private pollInput(): void {
-    if (this.tutorial.isOpen() || this.terminalUI.isOpen()) {
+    if (this.cutscene.isActive() || this.tutorial.isOpen() || this.terminalUI.isOpen()) {
       this.input.throttle = 0;
       this.input.pitch = 0;
       this.input.yaw = 0;
@@ -443,6 +482,31 @@ export class ApexPrimeGame {
   }
 
   private updateCamera(dt: number): void {
+    if (this.cutscene.isActive()) {
+      const curLine = this.cutscene.getCurrentLine();
+      const lookAtType = curLine?.lookAt || 'ship';
+      const camDist = curLine?.cameraDistance || 24.0;
+      const camPitch = curLine?.cameraPitch || 0.12;
+
+      let targetPos = this.ship.position;
+      if (lookAtType === 'station') {
+        targetPos = this.station.data.position;
+      } else if (lookAtType === 'boss') {
+        targetPos = this.boss.data.position;
+      }
+
+      const t = this.clock.getElapsedTime();
+      const desiredPos = new THREE.Vector3(
+        targetPos.x + Math.sin(t * 0.25) * camDist,
+        targetPos.y + 4.0 + Math.sin(t * 0.15) * 2.0 + camDist * camPitch,
+        targetPos.z + Math.cos(t * 0.25) * camDist
+      );
+
+      this.camera.position.lerp(desiredPos, Math.min(1.0, 4.0 * dt));
+      this.camera.lookAt(targetPos);
+      return;
+    }
+
     const forward = this.ship.getForwardVector();
     const up = this.ship.getUpVector();
 
@@ -554,6 +618,9 @@ export class ApexPrimeGame {
   private loop(_timestamp: number): void {
     const dt = Math.min(0.1, this.clock.getDelta());
 
+    // Update story cutscene director
+    this.cutscene.update(dt);
+
     this.pollInput();
 
     // Normal flight controls active unless locked in tractor dock
@@ -582,10 +649,11 @@ export class ApexPrimeGame {
       }
     }
 
-    // Combat: Laser Firing (Click or KeyF or KeyJ) - disabled while docked or inside terminal
-    const isFiring = (this.isMouseDown || this.keysDown.has('KeyF') || this.keysDown.has('KeyJ') || this.keysDown.has('Enter'))
+    // Combat: Laser Firing (Click or KeyF or KeyJ) - disabled while docked, in terminal, or in cutscene
+    const isFiring = (this.isMouseDown || this.keysDown.has('KeyF') || this.keysDown.has('KeyJ'))
       && this.station.data.status !== 'DOCKED'
-      && !this.terminalUI.isOpen();
+      && !this.terminalUI.isOpen()
+      && !this.cutscene.isActive();
     if (isFiring) {
       const extraDamage = this.shop.getWeaponDamageBonus();
       this.combat.fire(
@@ -682,6 +750,10 @@ export class ApexPrimeGame {
       if (distToSpawn <= 130) {
         this.boss.spawn(new THREE.Vector3(150, 0, -450));
         this.terminalUI.showHUDToast('WARNING: CAPITAL CLASS WARSHIP DETECTED // ARCHON 01 ENGAGED!');
+        if (!this.hasPlayedBoss1Intro) {
+          this.hasPlayedBoss1Intro = true;
+          this.cutscene.play(BOSS1_INTRO_CUTSCENE);
+        }
       }
     }
 
